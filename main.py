@@ -8,7 +8,7 @@ from animations import blink, animate_spaceship
 TIC_TIMEOUT = 0.00001
 START_FRAME_SPACESHIP = read_file('frames/rocket_frame_1.txt')
 END_FRAME_SPACESHIP = read_file('frames/rocket_frame_2.txt')
-COUNT_STARS = 500
+STAR_COUNT = 500
 SYMBOLS_FOR_STARS = '+*.:'
 DELAY_BEFORE_START_BLINK_STAR = (15, 800)
 
@@ -34,7 +34,7 @@ def draw(canvas):
     canvas.refresh()
     canvas.nodelay(True)
     height_canvas, width_canvas = canvas.getmaxyx()
-    coroutines = generate_stars(canvas, COUNT_STARS, SYMBOLS_FOR_STARS)
+    coroutines = generate_stars(canvas, STAR_COUNT, SYMBOLS_FOR_STARS)
     center_height = height_canvas // 2
     width_height = width_canvas // 2
     spaceship = animate_spaceship(
@@ -46,13 +46,13 @@ def draw(canvas):
     coroutines.append(spaceship)
 
     while True:
-        try:
-            for coroutine in coroutines:
+        for coroutine in coroutines[:]:
+            try:
                 coroutine.send(None)
-                canvas.refresh()
-            time.sleep(TIC_TIMEOUT)
-        except StopIteration:
-            coroutines.remove(coroutine)
+            except StopIteration:
+                coroutines.remove(coroutine)
+        canvas.refresh()
+        time.sleep(TIC_TIMEOUT)
 
 
 if __name__ == '__main__':
