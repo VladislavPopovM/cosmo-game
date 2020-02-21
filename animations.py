@@ -1,7 +1,7 @@
 import asyncio
 import curses
 
-from curses_tools import draw_frame, read_controls, is_frame_go_out_of_bounds
+from curses_tools import draw_frame, read_controls, is_frame_go_out_of_bounds, sleep
 
 
 BLINK_STAR_DELAY = {
@@ -19,25 +19,20 @@ SPACESHIP_DRAW_DELAY = {
 async def blink(canvas, row, column, delay_before_start, symbol='*'):
     """Display star. Symbol and position can be specified."""
 
-    for i in range(delay_before_start):
-        await asyncio.sleep(0)
+    await sleep(delay_before_start)
 
     while True:
         canvas.addstr(row, column, symbol, curses.A_DIM)
-        for i in range(BLINK_STAR_DELAY['A_DIM']):
-            await asyncio.sleep(0)
+        await sleep(BLINK_STAR_DELAY['A_DIM'])
 
         canvas.addstr(row, column, symbol)
-        for i in range(BLINK_STAR_DELAY['STANDARD']):
-            await asyncio.sleep(0)
+        await sleep(BLINK_STAR_DELAY['STANDARD'])
 
         canvas.addstr(row, column, symbol, curses.A_BOLD)
-        for i in range(BLINK_STAR_DELAY['A_BOLD']):
-            await asyncio.sleep(0)
+        await sleep(BLINK_STAR_DELAY['A_BOLD'])
 
         canvas.addstr(row, column, symbol)
-        for i in range(BLINK_STAR_DELAY['STANDARD']):
-            await asyncio.sleep(0)
+        await sleep(BLINK_STAR_DELAY['STANDARD'])
 
 
 async def fire(canvas, start_row, start_column, rows_speed=-0.03, columns_speed=0):
@@ -46,10 +41,10 @@ async def fire(canvas, start_row, start_column, rows_speed=-0.03, columns_speed=
     row, column = start_row, start_column
 
     canvas.addstr(round(row), round(column), '*')
-    await asyncio.sleep(0)
+    await sleep(1)
 
     canvas.addstr(round(row), round(column), 'O')
-    await asyncio.sleep(0)
+    await sleep(1)
     canvas.addstr(round(row), round(column), ' ')
 
     row += rows_speed
@@ -64,7 +59,7 @@ async def fire(canvas, start_row, start_column, rows_speed=-0.03, columns_speed=
 
     while 0 < row < max_row and 0 < column < max_column:
         canvas.addstr(round(row), round(column), symbol)
-        await asyncio.sleep(0)
+        await sleep(1)
         canvas.addstr(round(row), round(column), ' ')
         row += rows_speed
         column += columns_speed
@@ -81,15 +76,30 @@ async def animate_spaceship(canvas, start_row, start_column, start_frame, end_fr
             start_column += columns_direction
 
         draw_frame(canvas, start_row, start_column, start_frame)
-        for i in range(SPACESHIP_DRAW_DELAY['START_FRAME']):
-            await asyncio.sleep(0)
+        await sleep(SPACESHIP_DRAW_DELAY['START_FRAME'])
 
         draw_frame(canvas, start_row, start_column, start_frame, negative=True)
-        await asyncio.sleep(0)
+        await sleep(1)
 
         draw_frame(canvas, start_row, start_column, end_frame)
-        for i in range(SPACESHIP_DRAW_DELAY['END_FRAME']):
-            await asyncio.sleep(0)
+        await sleep(SPACESHIP_DRAW_DELAY['END_FRAME'])
 
         draw_frame(canvas, start_row, start_column, end_frame, negative=True)
-        await asyncio.sleep(0)
+        await sleep(1)
+
+
+async def fly_garbage(canvas, column, garbage_frame, speed=0.5):
+    """Animate garbage, flying from top to bottom. Сolumn position will stay same, as specified on start."""
+    rows_number, columns_number = canvas.getmaxyx()
+
+    column = max(column, 0)
+    column = min(column, columns_number - 1)
+
+    row = 0
+
+    while row < rows_number:
+        draw_frame(canvas, row, column, garbage_frame)
+        await sleep(1)
+        draw_frame(canvas, row, column, garbage_frame, negative=True)
+        row += speed
+

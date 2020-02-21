@@ -1,3 +1,7 @@
+import os
+import asyncio
+
+
 SPACE_KEY_CODE = 32
 LEFT_KEY_CODE = 260
 RIGHT_KEY_CODE = 261
@@ -82,6 +86,14 @@ def read_file(path):
         return f.read()
 
 
+def get_garbages_frames(path):
+    garbages_frames = []
+    for framepath in os.listdir(path):
+        full_path = os.path.join(path, framepath)
+        garbages_frames.append(read_file(full_path))
+    return garbages_frames
+
+
 def is_frame_go_out_of_height(frame_rows, height, row):
     return frame_rows < row < height
 
@@ -100,3 +112,8 @@ def is_frame_go_out_of_bounds(canvas, frame):
         return (is_frame_go_out_of_height(frame_rows, height_canvas, new_row)
                 and is_frame_go_out_of_width(frame_cols, width_canvas, new_col))
     return inner
+
+
+async def sleep(tics=1):
+    for _ in range(tics):
+        await asyncio.sleep(0)

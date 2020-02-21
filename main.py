@@ -2,8 +2,8 @@ import time
 import random
 import curses
 
-from curses_tools import read_file
-from animations import blink, animate_spaceship
+from curses_tools import read_file, get_garbages_frames, get_frame_size, sleep
+from animations import blink, animate_spaceship, fly_garbage
 
 TIC_TIMEOUT = 0.00001
 START_FRAME_SPACESHIP = read_file('frames/rocket_frame_1.txt')
@@ -11,15 +11,31 @@ END_FRAME_SPACESHIP = read_file('frames/rocket_frame_2.txt')
 STAR_COUNT = 500
 SYMBOLS_FOR_STARS = '+*.:'
 DELAY_BEFORE_START_BLINK_STAR = (15, 800)
+BORDER_THICKNESS = 2
+GARBAGES_FRAMES = get_garbages_frames('frames/garbage')
+GARAGE_COUNT = 30
+GARBAGE_RANGE_SPEED = (0.005, 0.02)
+DELAY_BEFORE_CREATE_GARBAGE = (300, 500)
+COROUTINES = []
 
 
-def generate_stars(canvas, count_stars=500, kinds_stars='+*.:'):
+async def fill_orbit_with_garbage(canvas):
+    height_canvas, width_canvas = canvas.getmaxyx()
+    while True:
+        garbage_frame = random.choice(GARBAGES_FRAMES)
+        cols_garbage_frame, _ = get_frame_size(garbage_frame)
+        column = random.randint(BORDER_THICKNESS, width_canvas - cols_garbage_frame * 3)
+        speed = random.uniform(*GARBAGE_RANGE_SPEED)
+        await sleep(random.randint(*DELAY_BEFORE_CREATE_GARBAGE))
+        await fly_garbage(canvas, column, garbage_frame, speed)
+
+
+def generate_stars(canvas, star_count=STAR_COUNT, kinds_stars='+*.:'):
     height_canvas, width_canvas = canvas.getmaxyx()
     stars = []
-    border_thickness = 2
-    for _ in range(count_stars):
-        row = random.randint(border_thickness, height_canvas - border_thickness)
-        col = random.randint(border_thickness, width_canvas - border_thickness)
+    for _ in range(star_count):
+        row = random.randint(BORDER_THICKNESS, height_canvas - BORDER_THICKNESS)
+        col = random.randint(BORDER_THICKNESS, width_canvas - BORDER_THICKNESS)
         star = blink(
             canvas, row, col,
             delay_before_start=random.randint(*DELAY_BEFORE_START_BLINK_STAR),
@@ -29,28 +45,41 @@ def generate_stars(canvas, count_stars=500, kinds_stars='+*.:'):
     return stars
 
 
-def draw(canvas):
-    canvas.border()
-    canvas.refresh()
-    canvas.nodelay(True)
+def generate_garbages(canvas, garbage_count=GARAGE_COUNT):
+    garbages = []
+    for _ in range(garbage_count):
+        garbages.append(fill_orbit_with_garbage(canvas))
+    return garbages
+
+
+def generate_spaceship(canvas):
     height_canvas, width_canvas = canvas.getmaxyx()
-    coroutines = generate_stars(canvas, STAR_COUNT, SYMBOLS_FOR_STARS)
     center_height = height_canvas // 2
     width_height = width_canvas // 2
-    spaceship = animate_spaceship(
+    return animate_spaceship(
         canvas,
         start_row=center_height,
         start_column=width_height,
         start_frame=START_FRAME_SPACESHIP,
-        end_frame=END_FRAME_SPACESHIP)
-    coroutines.append(spaceship)
+        end_frame=END_FRAME_SPACESHIP
+    )
+
+
+def draw(canvas):
+    canvas.border()
+    canvas.refresh()
+    canvas.nodelay(True)
+
+    COROUTINES.extend(generate_stars(canvas, STAR_COUNT, SYMBOLS_FOR_STARS))
+    COROUTINES.append(generate_spaceship(canvas))
+    COROUTINES.extend(generate_garbages(canvas))
 
     while True:
-        for coroutine in coroutines[:]:
+        for coroutine in COROUTINES[:]:
             try:
                 coroutine.send(None)
             except StopIteration:
-                coroutines.remove(coroutine)
+                COROUTINES.remove(coroutine)
         canvas.refresh()
         time.sleep(TIC_TIMEOUT)
 
