@@ -117,3 +117,17 @@ def is_frame_go_out_of_bounds(canvas, frame):
 async def sleep(tics=1):
     for _ in range(tics):
         await asyncio.sleep(0)
+
+
+def has_collision(obstacles, **kwargs):
+    for obstacle in obstacles:
+        if obstacle.has_collision(**kwargs):
+            return obstacle
+
+
+def get_coordinate_center_frame(canvas, frame):
+    height_canvas, width_canvas = canvas.getmaxyx()
+    frame_height, frame_width = get_frame_size(frame)
+    center_height = height_canvas // 2 - (frame_height // 2)
+    width_height = width_canvas // 2 - (frame_width // 2)
+    return center_height, width_height
