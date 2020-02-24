@@ -6,7 +6,7 @@ cosmo-game - это игра про космос, типа space shooter в ко
 
 ## Пример работы
 
-[![asciicast](https://asciinema.org/a/7ltrLUPwuqtzkJQs1eUsAhDlF.svg)](https://asciinema.org/a/7ltrLUPwuqtzkJQs1eUsAhDlF)
+[![asciicast](https://asciinema.org/a/FuIsWV1xoNtcTjcnLPfu0LFPl)
 
 ## Требования
 
@@ -36,11 +36,3 @@ cd cosmo-game
 ```sh
 python3 main.py
 ```
-
-## TODO
-
-На данный момент реализовано анимация звезд, анимация космического корабля, движения корабля.
-
-1. Анимацию выстрела.
-2. Космический мусор.
-3. Враги.

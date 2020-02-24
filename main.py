@@ -12,7 +12,7 @@ SYMBOLS_FOR_STARS = '+*.:'
 DELAY_BEFORE_START_BLINK_STAR = (15, 800)
 BORDER_THICKNESS = 2
 GARBAGES_FRAMES = get_garbages_frames('frames/garbage')
-GARBAGE_COUNT = 40
+GARBAGE_COUNT = 25
 GARBAGE_RANGE_SPEED = (0.005, 0.02)
 DELAY_BEFORE_CREATE_GARBAGE = (300, 500)
 YEAR = 1957
@@ -24,8 +24,7 @@ async def show_year(canvas):
     center_canvas = (height_canvas - BORDER_THICKNESS, width_canvas // 2)
     canvas.derwin(*center_canvas)
     while True:
-        message = '{} {}'.format(YEAR, PHRASES.get(YEAR, ''))
-        canvas.addstr(*center_canvas, message)
+        canvas.addstr(*center_canvas, str(YEAR))
         await sleep()
 
 
@@ -35,7 +34,7 @@ async def increase_year_after_delay():
     while True:
         await sleep(DELAY_BETWEEN_YEAR)
         YEAR += 1
-        GARBAGE_COUNT += 1
+        GARBAGE_COUNT += 5
 
 
 async def fill_orbit_with_garbage(canvas):
