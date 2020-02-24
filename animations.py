@@ -1,7 +1,7 @@
-import asyncio
 import curses
 
-from curses_tools import draw_frame, read_controls, is_frame_go_out_of_bounds, sleep
+from curses_tools import draw_frame, read_controls, is_frame_go_out_of_bounds, sleep, read_file
+from physics import update_speed
 
 
 BLINK_STAR_DELAY = {
@@ -10,10 +10,12 @@ BLINK_STAR_DELAY = {
     'STANDARD': 50,
 }
 
-SPACESHIP_DRAW_DELAY = {
-    'START_FRAME': 20,
-    'END_FRAME': 20,
-}
+SPACESHIP_DRAW_DELAY = 20
+
+START_FRAME_SPACESHIP = read_file('frames/rocket_frame_1.txt')
+END_FRAME_SPACESHIP = read_file('frames/rocket_frame_2.txt')
+
+SPACESHIP_FRAME = START_FRAME_SPACESHIP
 
 
 async def blink(canvas, row, column, delay_before_start, symbol='*'):
@@ -35,7 +37,7 @@ async def blink(canvas, row, column, delay_before_start, symbol='*'):
         await sleep(BLINK_STAR_DELAY['STANDARD'])
 
 
-async def fire(canvas, start_row, start_column, rows_speed=-0.03, columns_speed=0):
+async def fire(canvas, start_row, start_column, rows_speed=-0.1, columns_speed=0):
     """Display animation of gun shot. Direction and speed can be specified."""
 
     row, column = start_row, start_column
@@ -65,27 +67,34 @@ async def fire(canvas, start_row, start_column, rows_speed=-0.03, columns_speed=
         column += columns_speed
 
 
-async def animate_spaceship(canvas, start_row, start_column, start_frame, end_frame):
-    is_inside_canvas = is_frame_go_out_of_bounds(canvas, start_frame)
-
+async def run_spaceship(canvas, start_row, start_column, coroutines):
+    is_inside_canvas = is_frame_go_out_of_bounds(canvas, SPACESHIP_FRAME)
+    row_speed = column_speed = 0
     while True:
         rows_direction, columns_direction, space_pressed = read_controls(canvas)
 
-        if is_inside_canvas(start_row, start_column, rows_direction, columns_direction):
-            start_row += rows_direction
-            start_column += columns_direction
+        if space_pressed:
+            coroutines.append(fire(canvas, start_row, start_column))
 
-        draw_frame(canvas, start_row, start_column, start_frame)
-        await sleep(SPACESHIP_DRAW_DELAY['START_FRAME'])
+        row_speed, column_speed = update_speed(row_speed, column_speed, rows_direction, columns_direction)
 
-        draw_frame(canvas, start_row, start_column, start_frame, negative=True)
-        await sleep(1)
+        if is_inside_canvas(start_row, start_column, row_speed, column_speed):
+            start_row += row_speed
+            start_column += column_speed
 
-        draw_frame(canvas, start_row, start_column, end_frame)
-        await sleep(SPACESHIP_DRAW_DELAY['END_FRAME'])
+        draw_frame(canvas, start_row, start_column, SPACESHIP_FRAME)
+        await sleep(SPACESHIP_DRAW_DELAY)
 
-        draw_frame(canvas, start_row, start_column, end_frame, negative=True)
-        await sleep(1)
+        draw_frame(canvas, start_row, start_column, SPACESHIP_FRAME, negative=True)
+        await animate_spaceship()
+
+
+async def animate_spaceship():
+    global SPACESHIP_FRAME
+    if SPACESHIP_FRAME == START_FRAME_SPACESHIP:
+        SPACESHIP_FRAME = END_FRAME_SPACESHIP
+    else:
+        SPACESHIP_FRAME = START_FRAME_SPACESHIP
 
 
 async def fly_garbage(canvas, column, garbage_frame, speed=0.5):
