@@ -6,7 +6,7 @@ cosmo-game - это игра про космос, типа space shooter в ко
 
 ## Пример работы
 
-[![asciicast](https://asciinema.org/a/FuIsWV1xoNtcTjcnLPfu0LFPl)
+[![asciicast](https://asciinema.org/a/FuIsWV1xoNtcTjcnLPfu0LFPl.svg)](https://asciinema.org/a/FuIsWV1xoNtcTjcnLPfu0LFPl)
 
 ## Требования
 
