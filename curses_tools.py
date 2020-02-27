@@ -87,11 +87,7 @@ def read_file(path):
 
 
 def get_garbages_frames(path):
-    garbages_frames = []
-    for framepath in os.listdir(path):
-        full_path = os.path.join(path, framepath)
-        garbages_frames.append(read_file(full_path))
-    return garbages_frames
+    return [read_file(os.path.join(path, framepath)) for framepath in os.listdir(path)]
 
 
 def is_frame_go_out_of_height(frame_rows, height, row):
@@ -125,7 +121,7 @@ def has_collision(obstacles, **kwargs):
             return obstacle
 
 
-def get_coordinate_center_frame(canvas, frame):
+def get_frame_center_coordinate(canvas, frame):
     height_canvas, width_canvas = canvas.getmaxyx()
     frame_height, frame_width = get_frame_size(frame)
     center_height = height_canvas // 2 - (frame_height // 2)

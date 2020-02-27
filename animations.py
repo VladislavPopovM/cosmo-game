@@ -1,7 +1,7 @@
 import curses
 
 from curses_tools import (draw_frame, read_controls, is_frame_go_out_of_bounds, sleep,
-                          read_file, get_frame_size, has_collision, get_coordinate_center_frame)
+                          read_file, get_frame_size, has_collision, get_frame_center_coordinate)
 from physics import update_speed
 from obstacles import Obstacle
 from explosion import explode
@@ -20,7 +20,7 @@ SPACESHIP_DRAW_DELAY = 20
 SPACESHIP_FRAME = SPACESHIP_START_FRAME
 OBSTACLES = []
 OBSTACLES_IN_LAST_COLLISIONS = []
-COROUTINES = []
+coroutines = []
 
 
 async def blink(canvas, row, column, delay_before_start, symbol='*'):
@@ -85,7 +85,7 @@ async def run_spaceship(canvas, start_row, start_column):
         rows_direction, columns_direction, space_pressed = read_controls(canvas)
 
         if space_pressed:
-            COROUTINES.append(fire(canvas, start_row, start_column))
+            coroutines.append(fire(canvas, start_row, start_column))
 
         row_speed, column_speed = update_speed(row_speed, column_speed, rows_direction, columns_direction)
 
@@ -147,7 +147,7 @@ async def fly_garbage(canvas, column, garbage_frame, speed=0.5):
 
 
 async def show_gameover(canvas):
-    center_height, center_width = get_coordinate_center_frame(canvas, GAMEOVER_FRAME)
+    center_height, center_width = get_frame_center_coordinate(canvas, GAMEOVER_FRAME)
     while True:
         draw_frame(canvas, center_height, center_width, GAMEOVER_FRAME)
         await sleep(1)

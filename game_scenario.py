@@ -14,14 +14,14 @@ def get_garbage_delay_tics(year):
     if year < 1961:
         return None
     elif year < 1969:
-        return 20
+        return 200
     elif year < 1981:
-        return 14
+        return 140
     elif year < 1995:
-        return 10
+        return 100
     elif year < 2010:
-        return 8
+        return 80
     elif year < 2020:
-        return 6
+        return 60
     else:
-        return 2
+        return 20
