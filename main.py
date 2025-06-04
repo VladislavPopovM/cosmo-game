@@ -2,9 +2,14 @@ import time
 import random
 import curses
 
-from curses_tools import get_garbages_frames, get_frame_size, sleep, get_frame_center_coordinate
+from curses_tools import (
+    get_garbages_frames,
+    get_frame_size,
+    sleep,
+    get_frame_center_coordinate,
+)
 from animations import blink, fly_garbage, run_spaceship, coroutines, SPACESHIP_FRAME
-from game_scenario import get_garbage_delay_tics
+from game_scenario import get_garbage_delay_tics, PHRASES
 
 TIC_TIMEOUT = 0.00001
 STARS_COUNT = 500
@@ -19,11 +24,27 @@ year = 1957
 
 
 async def show_year(canvas):
+    """Display current year and historical phrase if it exists."""
     height_canvas, width_canvas = canvas.getmaxyx()
-    center_canvas = (height_canvas - BORDER_THICKNESS, width_canvas // 2)
-    canvas.derwin(*center_canvas)
+    row_year = height_canvas - BORDER_THICKNESS
+
+    last_phrase_length = 0
     while True:
-        canvas.addstr(*center_canvas, str(year))
+        year_str = str(year)
+        col_year = width_canvas // 2 - len(year_str) // 2
+        canvas.addstr(row_year, col_year, year_str)
+
+        phrase = PHRASES.get(year)
+        phrase_row = row_year - 1
+        if phrase:
+            col_phrase = width_canvas // 2 - len(phrase) // 2
+            canvas.addstr(phrase_row, col_phrase, phrase)
+            last_phrase_length = len(phrase)
+        else:
+            if last_phrase_length:
+                canvas.addstr(phrase_row, 0, ' ' * last_phrase_length)
+                last_phrase_length = 0
+
         await sleep()
 
 
