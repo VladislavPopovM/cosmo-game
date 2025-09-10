@@ -1,10 +1,19 @@
 import curses
 
-from curses_tools import (draw_frame, read_controls, is_frame_go_out_of_bounds, sleep,
-                          read_file, get_frame_size, has_collision, get_frame_center_coordinate)
-from physics import update_speed
-from obstacles import Obstacle
-from explosion import explode
+from .curses_tools import (
+    draw_frame,
+    read_controls,
+    is_frame_go_out_of_bounds,
+    sleep,
+    read_file,
+    get_frame_size,
+    has_collision,
+    get_frame_center_coordinate,
+)
+from core.physics import update_speed
+from entities.obstacles import Obstacle
+from .explosion import explode
+from core import config
 
 
 BLINK_STAR_DELAY = {
@@ -16,11 +25,7 @@ BLINK_STAR_DELAY = {
 GAMEOVER_FRAME = read_file('frames/gameover.txt')
 SPACESHIP_START_FRAME = read_file('frames/rocket_frame_1.txt')
 SPACESHIP_END_FRAME = read_file('frames/rocket_frame_2.txt')
-SPACESHIP_DRAW_DELAY = 20
 SPACESHIP_FRAME = SPACESHIP_START_FRAME
-OBSTACLES = []
-OBSTACLES_IN_LAST_COLLISIONS = []
-coroutines = []
 
 
 async def blink(canvas, row, column, delay_before_start, symbol='*'):
@@ -42,7 +47,7 @@ async def blink(canvas, row, column, delay_before_start, symbol='*'):
         await sleep(BLINK_STAR_DELAY['STANDARD'])
 
 
-async def fire(canvas, start_row, start_column, rows_speed=-0.1, columns_speed=0):
+async def fire(canvas, game, start_row, start_column, rows_speed=-0.1, columns_speed=0):
     """Display animation of gun shot. Direction and speed can be specified."""
 
     row, column = start_row, start_column
@@ -71,13 +76,13 @@ async def fire(canvas, start_row, start_column, rows_speed=-0.1, columns_speed=0
         row += rows_speed
         column += columns_speed
 
-        obstacle = has_collision(OBSTACLES, obj_corner_row=row, obj_corner_column=column)
+        obstacle = has_collision(game.obstacles, obj_corner_row=row, obj_corner_column=column)
         if obstacle:
-            OBSTACLES_IN_LAST_COLLISIONS.append(obstacle)
+            game.obstacles_in_last_collisions.append(obstacle)
             return
 
 
-async def run_spaceship(canvas, start_row, start_column):
+async def run_spaceship(game, canvas, start_row, start_column):
     frame_rows, frame_cols = get_frame_size(SPACESHIP_FRAME)
     is_inside_canvas = is_frame_go_out_of_bounds(canvas, SPACESHIP_FRAME)
     row_speed = column_speed = 0
@@ -85,7 +90,7 @@ async def run_spaceship(canvas, start_row, start_column):
         rows_direction, columns_direction, space_pressed = read_controls(canvas)
 
         if space_pressed:
-            coroutines.append(fire(canvas, start_row, start_column))
+            game.create_task(fire(canvas, game, start_row, start_column))
 
         row_speed, column_speed = update_speed(row_speed, column_speed, rows_direction, columns_direction)
 
@@ -94,16 +99,17 @@ async def run_spaceship(canvas, start_row, start_column):
             start_column += column_speed
 
         draw_frame(canvas, start_row, start_column, SPACESHIP_FRAME)
-        await sleep(SPACESHIP_DRAW_DELAY)
+        await sleep(config.SPACESHIP_DRAW_DELAY)
 
         draw_frame(canvas, start_row, start_column, SPACESHIP_FRAME, negative=True)
         await animate_spaceship()
 
-        obstacle = has_collision(OBSTACLES,
-                                 obj_corner_row=start_row,
-                                 obj_corner_column=start_column,
-                                 obj_size_rows=frame_rows,
-                                 obj_size_columns=frame_cols)
+        obstacle = has_collision(
+            game.obstacles,
+            obj_corner_row=start_row,
+            obj_corner_column=start_column,
+            obj_size_rows=frame_rows,
+            obj_size_columns=frame_cols)
         if obstacle:
             await show_gameover(canvas)
             return
@@ -117,7 +123,7 @@ async def animate_spaceship():
         SPACESHIP_FRAME = SPACESHIP_START_FRAME
 
 
-async def fly_garbage(canvas, column, garbage_frame, speed=0.5):
+async def fly_garbage(canvas, game, column, garbage_frame, speed=0.5):
     """Animate garbage, flying from top to bottom. Сolumn position will stay same, as specified on start."""
     rows_number, columns_number = canvas.getmaxyx()
 
@@ -128,7 +134,7 @@ async def fly_garbage(canvas, column, garbage_frame, speed=0.5):
 
     rows_size, columns_size = get_frame_size(garbage_frame)
     obstacle = Obstacle(row, column, rows_size, columns_size)
-    OBSTACLES.append(obstacle)
+    game.obstacles.append(obstacle)
 
     while row < rows_number:
         draw_frame(canvas, row, column, garbage_frame)
@@ -137,12 +143,12 @@ async def fly_garbage(canvas, column, garbage_frame, speed=0.5):
         row += speed
         obstacle.row = row
 
-        if obstacle in OBSTACLES_IN_LAST_COLLISIONS:
-            OBSTACLES_IN_LAST_COLLISIONS.remove(obstacle)
-            await explode(canvas, row + rows_size//2, column + columns_size//2)
+        if obstacle in game.obstacles_in_last_collisions:
+            game.obstacles_in_last_collisions.remove(obstacle)
+            await explode(canvas, row + rows_size // 2, column + columns_size // 2)
             break
 
-    OBSTACLES.remove(obstacle)
+    game.obstacles.remove(obstacle)
     return
 
 

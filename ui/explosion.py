@@ -1,5 +1,5 @@
 import curses
-from curses_tools import draw_frame, get_frame_size, sleep
+from .curses_tools import draw_frame, get_frame_size, sleep
 
 EXPLOSION_FRAMES = [
     """\

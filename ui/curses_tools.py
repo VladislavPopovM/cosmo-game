@@ -1,6 +1,8 @@
 import os
 import asyncio
+from typing import List
 
+from core.interfaces import Collidable
 
 SPACE_KEY_CODE = 32
 LEFT_KEY_CODE = 260
@@ -115,7 +117,7 @@ async def sleep(tics=1):
         await asyncio.sleep(0)
 
 
-def has_collision(obstacles, **kwargs):
+def has_collision(obstacles: List[Collidable], **kwargs):
     for obstacle in obstacles:
         if obstacle.has_collision(**kwargs):
             return obstacle
