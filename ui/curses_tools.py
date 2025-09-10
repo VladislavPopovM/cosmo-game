@@ -1,6 +1,7 @@
 import os
 import asyncio
 from typing import List
+from core import config
 
 from core.interfaces import Collidable
 
@@ -24,16 +25,16 @@ def read_controls(canvas):
             # https://docs.python.org/3/library/curses.html#curses.window.getch
             break
 
-        if pressed_key_code == UP_KEY_CODE:
+        if pressed_key_code == UP_KEY_CODE or pressed_key_code in (ord('w'), ord('W')):
             rows_direction = -1
 
-        if pressed_key_code == DOWN_KEY_CODE:
+        if pressed_key_code == DOWN_KEY_CODE or pressed_key_code in (ord('s'), ord('S')):
             rows_direction = 1
 
-        if pressed_key_code == RIGHT_KEY_CODE:
+        if pressed_key_code == RIGHT_KEY_CODE or pressed_key_code in (ord('d'), ord('D')):
             columns_direction = 1
 
-        if pressed_key_code == LEFT_KEY_CODE:
+        if pressed_key_code == LEFT_KEY_CODE or pressed_key_code in (ord('a'), ord('A')):
             columns_direction = -1
 
         if pressed_key_code == SPACE_KEY_CODE:
@@ -42,7 +43,7 @@ def read_controls(canvas):
     return rows_direction, columns_direction, space_pressed
 
 
-def draw_frame(canvas, start_row, start_column, text, negative=False):
+def draw_frame(canvas, start_row, start_column, text, negative=False, attr=None):
     """Draw multiline text fragment on canvas. Erase text instead of drawing if negative=True is specified."""
 
     rows_number, columns_number = canvas.getmaxyx()
@@ -71,7 +72,10 @@ def draw_frame(canvas, start_row, start_column, text, negative=False):
                 continue
 
             symbol = symbol if not negative else ' '
-            canvas.addch(row, column, symbol)
+            if attr is None:
+                canvas.addch(row, column, symbol)
+            else:
+                canvas.addch(row, column, symbol, attr)
 
 
 def get_frame_size(text):
@@ -113,6 +117,7 @@ def is_frame_go_out_of_bounds(canvas, frame):
 
 
 async def sleep(tics=1):
+    # Yield control tics times; real pacing is driven by refresh()'s TIC_TIMEOUT
     for _ in range(tics):
         await asyncio.sleep(0)
 

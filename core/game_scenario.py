@@ -11,17 +11,18 @@ PHRASES = {
 
 
 def get_garbage_delay_tics(year):
+    # Make garbage sparser across the timeline (bigger delay -> fewer spawns)
     if year < 1961:
         return None
     elif year < 1969:
-        return 200
+        return 400
     elif year < 1981:
-        return 140
+        return 320
     elif year < 1995:
-        return 100
+        return 260
     elif year < 2010:
-        return 80
+        return 200
     elif year < 2020:
-        return 60
+        return 160
     else:
-        return 20
+        return 120

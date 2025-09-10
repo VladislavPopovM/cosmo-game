@@ -1,4 +1,5 @@
 import curses
+from core.scene import Bullet, Garbage
 
 from .curses_tools import (
     draw_frame,
@@ -28,58 +29,46 @@ SPACESHIP_END_FRAME = read_file('frames/rocket_frame_2.txt')
 SPACESHIP_FRAME = SPACESHIP_START_FRAME
 
 
-async def blink(canvas, row, column, delay_before_start, symbol='*'):
-    """Display star. Symbol and position can be specified."""
-
+async def blink(canvas, game, star, delay_before_start):
+    """Update star's phase; centralized rendering handles drawing."""
     await sleep(delay_before_start)
-
     while True:
-        canvas.addstr(row, column, symbol, curses.A_DIM)
+        if game.ended:
+            return
+        star.phase = 0
         await sleep(BLINK_STAR_DELAY['A_DIM'])
-
-        canvas.addstr(row, column, symbol)
+        star.phase = 1
         await sleep(BLINK_STAR_DELAY['STANDARD'])
-
-        canvas.addstr(row, column, symbol, curses.A_BOLD)
+        star.phase = 2
         await sleep(BLINK_STAR_DELAY['A_BOLD'])
-
-        canvas.addstr(row, column, symbol)
+        star.phase = 1
         await sleep(BLINK_STAR_DELAY['STANDARD'])
 
 
-async def fire(canvas, game, start_row, start_column, rows_speed=-0.1, columns_speed=0):
-    """Display animation of gun shot. Direction and speed can be specified."""
-
+async def fire(canvas, game, start_row, start_column, rows_speed=config.BULLET_ROW_SPEED, columns_speed=0):
+    """Bullet updates its state in the scene; renderer draws it."""
     row, column = start_row, start_column
-
-    canvas.addstr(round(row), round(column), '*')
-    await sleep(1)
-
-    canvas.addstr(round(row), round(column), 'O')
-    await sleep(1)
-    canvas.addstr(round(row), round(column), ' ')
-
-    row += rows_speed
-    column += columns_speed
-
-    symbol = '-' if columns_speed else '|'
-
     rows, columns = canvas.getmaxyx()
     max_row, max_column = rows - 1, columns - 1
 
     curses.beep()
+    bullet = Bullet(row=row, col=column)
+    game.scene.bullets.append(bullet)
 
-    while 0 < row < max_row and 0 < column < max_column:
-        canvas.addstr(round(row), round(column), symbol)
+    while 0 < bullet.row < max_row and 0 < bullet.col < max_column:
+        if game.ended:
+            break
         await sleep(1)
-        canvas.addstr(round(row), round(column), ' ')
-        row += rows_speed
-        column += columns_speed
+        bullet.row += rows_speed
+        bullet.col += columns_speed
 
-        obstacle = has_collision(game.obstacles, obj_corner_row=row, obj_corner_column=column)
+        obstacle = has_collision(game.obstacles, obj_corner_row=bullet.row, obj_corner_column=bullet.col)
         if obstacle:
             game.obstacles_in_last_collisions.append(obstacle)
-            return
+            break
+
+    # Remove bullet
+    game.scene.bullets = [b for b in game.scene.bullets if b is not bullet]
 
 
 async def run_spaceship(game, canvas, start_row, start_column):
@@ -92,17 +81,28 @@ async def run_spaceship(game, canvas, start_row, start_column):
         if space_pressed:
             game.create_task(fire(canvas, game, start_row, start_column))
 
-        row_speed, column_speed = update_speed(row_speed, column_speed, rows_direction, columns_direction)
+        row_speed, column_speed = update_speed(
+            row_speed,
+            column_speed,
+            rows_direction,
+            columns_direction,
+            row_speed_limit=config.SPACESHIP_ROW_SPEED_LIMIT,
+            column_speed_limit=config.SPACESHIP_COL_SPEED_LIMIT,
+            fading=config.SPACESHIP_FADING,
+        )
 
         if is_inside_canvas(start_row, start_column, row_speed, column_speed):
             start_row += row_speed
             start_column += column_speed
 
-        draw_frame(canvas, start_row, start_column, SPACESHIP_FRAME)
+        # Update scene spaceship position and frame
+        if game.scene.spaceship:
+            game.scene.spaceship.row = start_row
+            game.scene.spaceship.col = start_column
         await sleep(config.SPACESHIP_DRAW_DELAY)
-
-        draw_frame(canvas, start_row, start_column, SPACESHIP_FRAME, negative=True)
         await animate_spaceship()
+        if game.scene.spaceship:
+            game.scene.spaceship.frame = SPACESHIP_FRAME
 
         obstacle = has_collision(
             game.obstacles,
@@ -111,7 +111,7 @@ async def run_spaceship(game, canvas, start_row, start_column):
             obj_size_rows=frame_rows,
             obj_size_columns=frame_cols)
         if obstacle:
-            await show_gameover(canvas)
+            await game.end_game()
             return
 
 
@@ -136,24 +136,27 @@ async def fly_garbage(canvas, game, column, garbage_frame, speed=0.5):
     obstacle = Obstacle(row, column, rows_size, columns_size)
     game.obstacles.append(obstacle)
 
+    gobj = Garbage(row=row, col=column, frame=garbage_frame, uid=id(obstacle))
+    game.scene.garbages.append(gobj)
     while row < rows_number:
-        draw_frame(canvas, row, column, garbage_frame)
+        if game.ended:
+            break
         await sleep(1)
-        draw_frame(canvas, row, column, garbage_frame, negative=True)
         row += speed
         obstacle.row = row
+        gobj.row = row
 
         if obstacle in game.obstacles_in_last_collisions:
             game.obstacles_in_last_collisions.remove(obstacle)
-            await explode(canvas, row + rows_size // 2, column + columns_size // 2)
+            await explode(game, canvas, row + rows_size // 2, column + columns_size // 2)
             break
 
     game.obstacles.remove(obstacle)
+    # Remove garbage from scene
+    game.scene.garbages = [gg for gg in game.scene.garbages if gg is not gobj]
     return
 
 
 async def show_gameover(canvas):
-    center_height, center_width = get_frame_center_coordinate(canvas, GAMEOVER_FRAME)
-    while True:
-        draw_frame(canvas, center_height, center_width, GAMEOVER_FRAME)
-        await sleep(1)
+    # After end_game, we render just once (The END is handled by Game)
+    await sleep(1)
