@@ -11,18 +11,18 @@ PHRASES = {
 
 
 def get_garbage_delay_tics(year):
-    # Make garbage sparser across the timeline (bigger delay -> fewer spawns)
+    """Spawn interval in ticks (TIC_TIMEOUT ~= 0.012). Lower = more often."""
     if year < 1961:
-        return None
+        return 180
     elif year < 1969:
-        return 400
+        return 140
     elif year < 1981:
-        return 320
-    elif year < 1995:
-        return 260
-    elif year < 2010:
-        return 200
-    elif year < 2020:
-        return 160
-    else:
         return 120
+    elif year < 1995:
+        return 100
+    elif year < 2010:
+        return 80
+    elif year < 2020:
+        return 65
+    else:
+        return 55

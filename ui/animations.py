@@ -1,5 +1,5 @@
 import curses
-from core.scene import Bullet, Garbage
+from core.scene import Bullet, Garbage, Explosion
 
 from .curses_tools import (
     draw_frame,
@@ -18,9 +18,9 @@ from core import config
 
 
 BLINK_STAR_DELAY = {
-    'A_DIM': 700,
-    'A_BOLD': 40,
-    'STANDARD': 50,
+    'A_DIM': 80,   # ~0.96s at TIC_TIMEOUT=0.012
+    'A_BOLD': 10,  # ~0.12s
+    'STANDARD': 15 # ~0.18s
 }
 
 GAMEOVER_FRAME = read_file('frames/gameover.txt')
@@ -30,7 +30,7 @@ SPACESHIP_FRAME = SPACESHIP_START_FRAME
 
 
 async def blink(canvas, game, star, delay_before_start):
-    """Update star's phase; centralized rendering handles drawing."""
+    """Scene-based star blink: update phase, renderer draws it."""
     await sleep(delay_before_start)
     while True:
         if game.ended:
@@ -46,35 +46,33 @@ async def blink(canvas, game, star, delay_before_start):
 
 
 async def fire(canvas, game, start_row, start_column, rows_speed=config.BULLET_ROW_SPEED, columns_speed=0):
-    """Bullet updates its state in the scene; renderer draws it."""
+    """Scene-based bullet movement; renderer draws '|' each tick."""
     row, column = start_row, start_column
     rows, columns = canvas.getmaxyx()
     max_row, max_column = rows - 1, columns - 1
-
     curses.beep()
     bullet = Bullet(row=row, col=column)
     game.scene.bullets.append(bullet)
-
     while 0 < bullet.row < max_row and 0 < bullet.col < max_column:
         if game.ended:
             break
         await sleep(1)
         bullet.row += rows_speed
         bullet.col += columns_speed
-
         obstacle = has_collision(game.obstacles, obj_corner_row=bullet.row, obj_corner_column=bullet.col)
         if obstacle:
             game.obstacles_in_last_collisions.append(obstacle)
             break
-
     # Remove bullet
     game.scene.bullets = [b for b in game.scene.bullets if b is not bullet]
 
 
 async def run_spaceship(game, canvas, start_row, start_column):
+    """Smooth per-tick movement; animate frame at a slower cadence."""
     frame_rows, frame_cols = get_frame_size(SPACESHIP_FRAME)
     is_inside_canvas = is_frame_go_out_of_bounds(canvas, SPACESHIP_FRAME)
     row_speed = column_speed = 0
+    anim_counter = 0
     while True:
         rows_direction, columns_direction, space_pressed = read_controls(canvas)
 
@@ -95,15 +93,20 @@ async def run_spaceship(game, canvas, start_row, start_column):
             start_row += row_speed
             start_column += column_speed
 
-        # Update scene spaceship position and frame
+        # Update scene spaceship position
         if game.scene.spaceship:
             game.scene.spaceship.row = start_row
             game.scene.spaceship.col = start_column
-        await sleep(config.SPACESHIP_DRAW_DELAY)
-        await animate_spaceship()
-        if game.scene.spaceship:
-            game.scene.spaceship.frame = SPACESHIP_FRAME
 
+        # Animate frame less frequently for stability
+        anim_counter += 1
+        if anim_counter >= max(1, int(config.SPACESHIP_DRAW_DELAY)):
+            await animate_spaceship()
+            if game.scene.spaceship:
+                game.scene.spaceship.frame = SPACESHIP_FRAME
+            anim_counter = 0
+
+        # Collision check each tick
         obstacle = has_collision(
             game.obstacles,
             obj_corner_row=start_row,
@@ -113,6 +116,9 @@ async def run_spaceship(game, canvas, start_row, start_column):
         if obstacle:
             await game.end_game()
             return
+
+        # Per-tick pacing (keeps movement smooth)
+        await sleep(1)
 
 
 async def animate_spaceship():
@@ -145,16 +151,29 @@ async def fly_garbage(canvas, game, column, garbage_frame, speed=0.5):
         row += speed
         obstacle.row = row
         gobj.row = row
-
         if obstacle in game.obstacles_in_last_collisions:
             game.obstacles_in_last_collisions.remove(obstacle)
-            await explode(game, canvas, row + rows_size // 2, column + columns_size // 2)
+            # Add explosion state; renderer will draw frames
+            game.scene.explosions.append(Explosion(center_row=int(row + rows_size // 2), center_col=int(column + columns_size // 2), frame_index=0))
+            # Advance explosion frames asynchronously
+            game.create_task(_run_explosion(game))
             break
-
     game.obstacles.remove(obstacle)
     # Remove garbage from scene
     game.scene.garbages = [gg for gg in game.scene.garbages if gg is not gobj]
     return
+
+
+async def _run_explosion(game):
+    from ui.explosion import EXPLOSION_FRAMES
+    # Advance all active explosions' frames synchronously each tick
+    for i in range(len(EXPLOSION_FRAMES)):
+        if game.ended:
+            return
+        for ex in list(game.scene.explosions):
+            ex.frame_index = i
+        await sleep(config.EXPLOSION_DELAY_TICS)
+    game.scene.explosions.clear()
 
 
 async def show_gameover(canvas):

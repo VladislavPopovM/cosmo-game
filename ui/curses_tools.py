@@ -117,9 +117,10 @@ def is_frame_go_out_of_bounds(canvas, frame):
 
 
 async def sleep(tics=1):
-    # Yield control tics times; real pacing is driven by refresh()'s TIC_TIMEOUT
-    for _ in range(tics):
-        await asyncio.sleep(0)
+    # Sleep real time per tic to let buffered frames become visible
+    from core import config
+    for _ in range(max(1, int(tics))):
+        await asyncio.sleep(config.TIC_TIMEOUT)
 
 
 def has_collision(obstacles: List[Collidable], **kwargs):
